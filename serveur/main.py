@@ -2,26 +2,58 @@ from socket import socket,AF_INET,SOCK_STREAM
 from os.path import join,split
 from subprocess import Popen,PIPE
 from json import load
+import os
 from _thread import start_new_thread,exit as E
-
+import re
+import pickle
 class main:
     def __init__(self) -> None:
+        if os.name == 'nt':
+            self.path = re.findall(r"([\w| ]*:\\)",__file__)[0] 
+        else:
+            self.path = "/"
         self.config = load(open(join(split(__file__)[0],"config.json")))
-        start_new_thread(self.on_new_client_distant,())
-        start_new_thread(self.on_new_client_local,())
+        start_new_thread(self.co_ini_distant,())
+        start_new_thread(self.co_ini_local,())
         while True:
             pass
 
-    def commande(self,commande,client):
+    def commande(self,commande = list,client = socket):
         try:
-            client.send(Popen("127.0.0.1",stdout=PIPE).communicate()[0])
+            if "#01#" == commande[0]:
+                client.send(pickle.dumps(Popen(commande[1],stdout=PIPE).communicate()[0]))
+            elif "#02#" == commande[0]:
+                client.send(pickle.dumps(os.listdir(self.path)))
+            elif "#03#" == commande[0]:
+                self.path = os.path.join(self.path,commande[1])
+                client.send(pickle.dumps(os.listdir(self.path)))
+            elif "#04#" == commande[0]:
+                if os.name == "nt":
+                    if self.path == re.findall(r"([\w| ]*:\\)",__file__)[0]:
+                        pass
+                    else:
+                        test = self.path.split("\\")
+                        self.path = ""
+                        for i in range(len(test)-1):
+                            self.path += i+"\\"
+                else:
+                    if not self.path == "/":
+                        test = self.path.split("/")
+                        test[0] = "/"
+                        self.path = ""
+                        for i in range(len(test)-1):
+                            self.path += i+"/"
+                    else:
+                        pass
+                client.send(pickle.dumps(os.listdir(self.path)))
         except Exception as er:
             client.send(er)
 
-    def on_new_client_distant(self,client):
+    def on_new_client_distant(self,client = socket):
+        client.send(pickle.dumps(["#01#",os.name,self.config[2],self.config[3]]))
         while True:
             try:
-                msg_recu = client.recv(4096).decode('UTF-8')
+                msg_recu = pickle.loads(client.recv(4096))
             except:
                 break
             if msg_recu:
@@ -44,10 +76,11 @@ class main:
             start_new_thread(self.on_new_client_distant,(self.client,))
 
 
-    def on_new_client_local(self,client):
+    def on_new_client_local(self,client = socket):
+        client.send(pickle.dumps(["#01#",os.name,self.config[0],self.config[1]]))
         while True:
             try:
-                msg_recu = client.recv(4096).decode('UTF-8')
+                msg_recu = pickle.loads(client.recv(4096))
             except:
                 break
             if msg_recu:
@@ -68,3 +101,5 @@ class main:
             self.client,info_connexion = self.connexion_principale_local.accept()
             del info_connexion
             start_new_thread(self.on_new_client_local,(self.client,))
+
+main()
