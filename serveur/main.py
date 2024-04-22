@@ -46,8 +46,34 @@ class main:
                     else:
                         pass
                 client.send(pickle.dumps(os.listdir(self.path)))
+            elif commande[0] == "#05#":
+                client.send(pickle.dumps(["#02#","start"]))
+                f = open(join(self.path,commande[1]), 'rb')
+                while True:
+                    l = f.read(1024)
+                    while (l):
+                        client.send(l)
+                        l = f.read(1024)
+                    if not l:
+                        client.send(pickle.dumps(["#02#","stop"]))
+                        break
+            elif commande[0] == "#06#":
+                while True:
+                    try:
+                        msg_recu = pickle.loads(client.recv(4096))
+                    except:
+                        break
+                    if msg_recu[0] == "start":
+                        recived_f = msg_recu[1]
+                        with open(join(self.path,recived_f), 'wb') as f:
+                            while True:
+                                data = client.recv(1024)
+                                if not data:
+                                    f.close()
+                                    break
+                                f.write(data)
         except Exception as er:
-            client.send(er)
+            client.send(er.encode("utf-8"))
 
     def on_new_client_distant(self,client = socket):
         client.send(pickle.dumps(["#01#",os.name,self.config[2],self.config[3]]))
@@ -87,8 +113,6 @@ class main:
                 self.commande(msg_recu,client)
 
     def co_ini_local(self):
-        if self.config[0] == "127.0.0.1":
-            E()
         while True:
             self.connexion_principale_local = socket(AF_INET, SOCK_STREAM)
             try:
