@@ -25,8 +25,9 @@ class main:
             elif "#02#" == commande[0]:
                 client.send(pickle.dumps(os.listdir(self.path)))
             elif "#03#" == commande[0]:
-                self.path = os.path.join(self.path,commande[1])
-                client.send(pickle.dumps(os.listdir(self.path)))
+                if not "." in commande[1] and type(commande[1]) == type(""):
+                    self.path = os.path.join(self.path,commande[1])
+                    client.send(pickle.dumps(["#03#",os.listdir(self.path)]))
             elif "#04#" == commande[0]:
                 if os.name == "nt":
                     if self.path == re.findall(r"([\w| ]*:\\)",__file__)[0]:
@@ -35,17 +36,17 @@ class main:
                         test = self.path.split("\\")
                         self.path = ""
                         for i in range(len(test)-1):
-                            self.path += i+"\\"
+                            self.path += test[i]+"\\"
                 else:
                     if not self.path == "/":
                         test = self.path.split("/")
                         test[0] = "/"
                         self.path = ""
                         for i in range(len(test)-1):
-                            self.path += i+"/"
+                            self.path += test[i]+"/"
                     else:
                         pass
-                client.send(pickle.dumps(os.listdir(self.path)))
+                client.send(pickle.dumps(["#03#",os.listdir(self.path)]))
             elif commande[0] == "#05#":
                 client.send(pickle.dumps(["#02#","start"]))
                 f = open(join(self.path,commande[1]), 'rb')
@@ -73,7 +74,7 @@ class main:
                                     break
                                 f.write(data)
         except Exception as er:
-            client.send(er.encode("utf-8"))
+            client.send(f"{er}".encode("utf-8"))
 
     def on_new_client_distant(self,client = socket):
         client.send(pickle.dumps(["#01#",os.name,self.config[2],self.config[3]]))
@@ -93,8 +94,6 @@ class main:
             try:
                 self.connexion_principale_distant.bind((self.config[2],self.config[3]))
             except Exception as er:
-                print(er)
-                input()
                 E()
             self.connexion_principale_distant.listen(5)
             self.client,info_connexion = self.connexion_principale_distant.accept()
