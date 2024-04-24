@@ -1,38 +1,21 @@
+import tkinter
+from tkinter import filedialog
+class main:
+    def __init__(self) -> None:
+        self.path = None
+        self.fen = tkinter.Tk()
+        self.fen.geometry("500x500")
+        self.select_folder = tkinter.Button(self.fen,text="choisissez un dossier",command=self.test)
 
-# Import tkinter
-from tkinter import *
- 
-# Create the root window
-root = Tk()
-root.geometry('180x200')
- 
-# Create a listbox
-listbox = Listbox(root, width=40, height=10, selectmode=MULTIPLE)
- 
-# Inserting the listbox items
-listbox.insert(1, "Data Structure")
-listbox.insert(2, "Algorithm")
-listbox.insert(3, "Data Science")
-listbox.insert(4, "Machine Learning")
-listbox.insert(5, "Blockchain")
- 
-# Function for printing the
-# selected listbox value(s)
-def selected_item():
-     
-    # Traverse the tuple returned by
-    # curselection method and print
-    # corresponding value(s) in the listbox
-    for i in listbox.curselection():
-        print(listbox.get(i))
- 
-# Create a button widget and
-# map the command parameter to
-# selected_item function
-btn = Button(root, text='Print Selected', command=selected_item)
- 
-# Placing the button and listbox
-btn.pack(side='bottom')
-listbox.pack()
- 
-root.mainloop()
+        self.select_folder.pack()
+        self.fen.mainloop()
+
+    def test(self):
+        test = filedialog.askopenfile(title="séléctionner le dossier cible", initialdir=self.path)
+        if test:
+            self.path = test.name
+            self.select_folder.config(text=f"changer de dossier\nactuelle : '{self.path}'")
+            self.select_folder.update()
+            print(test)
+
+main()
