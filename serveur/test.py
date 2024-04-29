@@ -7,7 +7,7 @@ BUFFER_SIZE = 1024
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((TCP_IP, TCP_PORT))
-recived_f = 'imgt_thread'+str(time.time()).split('.')[0]+'.png'
+recived_f = 'convocation.pdf'
 
 with open(recived_f, 'wb') as f:
     print('file opened')

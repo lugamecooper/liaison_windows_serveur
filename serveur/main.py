@@ -1,11 +1,12 @@
 from socket import socket,AF_INET,SOCK_STREAM
-from os.path import join,split
+from os.path import join,split,isdir,isfile,getsize
 from subprocess import Popen,PIPE
 from json import load
 import os
 from _thread import start_new_thread,exit as E
 import re
 import pickle
+import time
 class main:
     def __init__(self) -> None:
         if os.name == 'nt':
@@ -19,7 +20,7 @@ class main:
         while True:
             pass
 
-    def commande(self,commande = list,client = socket):
+    def commande(self,commande = list,client = socket()):
         try:
             if "#01#" == commande[0]:
                 client.send(pickle.dumps(["#01#",Popen(commande[1],stdout=PIPE).communicate()[0]]))
@@ -54,33 +55,47 @@ class main:
                         pass
                 client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
             elif commande[0] == "#05#":
-                client.send(pickle.dumps(["#02#","start"]))
-                f = open(join(self.path[client],commande[1]), 'rb')
-                while True:
-                    l = f.read(1024)
-                    while (l):
-                        client.send(l)
-                        l = f.read(1024)
-                    if not l:
-                        client.send(pickle.dumps(["#02#","stop"]))
-                        break
+                tempo = join(self.path[client],commande[1])
+                if isfile(tempo):
+                    client.send(pickle.dumps(["#05#",commande[1],int(getsize(tempo)*1.2)]))
+                    f = open(tempo, 'rb')
+                    while True:
+                        l = f.read(int(getsize(tempo)*1.2))
+                        while (l):
+                            client.send(l)
+                            l = f.read(int(getsize(tempo)*1.2))
+                        if not l:
+                            client.send("stop".encode("utf-8"))
+                            f.close()
+                            break
+                else:
+                    client.send(pickle.dumps(["#50#",""]))
             elif commande[0] == "#06#":
                 while True:
-                    try:
-                        msg_recu = pickle.loads(client.recv(4096))
-                    except:
-                        break
-                    if msg_recu[0] == "start":
-                        recived_f = msg_recu[1]
-                        with open(join(self.path,recived_f), 'wb') as f:
-                            while True:
-                                data = client.recv(1024)
-                                if not data:
-                                    f.close()
-                                    break
-                                f.write(data)
+                    test = pickle.loads(client.recv(1024))
+                    if test:
+                        if test[0] == "#06#":
+                            if isfile(join(self.path[client],test[1])):
+                                f = open(join(self.path[client],test[1]), 'wb')
+                                while True:
+                                    data = client.recv(int(test[2]))
+                                    try:
+                                        if data.decode("utf-8") == "stop":
+                                            print("test")
+                                            f.close()
+                                            break
+                                    except:
+                                        pass 
+                                    f.write(data)
+                                break
+                        elif test[0] == "#60#":
+                            break
+                client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
         except Exception as er:
-            client.send(f"{er}".encode("utf-8"))
+            try:
+                client.send(f"{er}".encode("utf-8"))
+            except:
+                pass
 
     def on_new_client_distant(self,client = socket):
         client.send(pickle.dumps(["#01#",os.name,self.config[2],self.config[3]]))
@@ -126,8 +141,6 @@ class main:
             try:
                 self.connexion_principale_local.bind((self.config[0],self.config[1]))
             except Exception as er:
-                print(er)
-                input()
                 E()
             self.connexion_principale_local.listen(5)
             self.client,info_connexion = self.connexion_principale_local.accept()

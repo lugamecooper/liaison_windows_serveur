@@ -6,6 +6,7 @@ import tkinter
 import pickle
 from time import sleep
 import tkinter.filedialog
+from os.path import join,getsize,isfile
 
 class main:
     def __init__(self) -> None:
@@ -18,6 +19,7 @@ class main:
         self.message_distant = None
         self.path_down = None
         self.path_fichier_envoi = None
+        self.file_size = None
 
         self.fen = tkinter.Tk(className="client_liaison_windows_serveur")
         self.fen.geometry(f"{self.fen.winfo_screenwidth()}x{self.fen.winfo_screenheight()}")
@@ -87,9 +89,9 @@ class main:
         self.div_bouton = tkinter.Frame(self.div_explorateur)
         
         self.select_folder = tkinter.Button(self.div_bouton,text="choisissez un dossier pour le téléchargement",command=self.selectionner_recup_fichier)
-        self.bouton_down_fichier = tkinter.Button(self.div_bouton,text="télécharger le fichier",command=self.test_mode)
+        self.bouton_down_fichier = tkinter.Button(self.div_bouton,text="télécharger le fichier",command=self.down_file)
         self.select_file = tkinter.Button(self.div_bouton,text="choisissez un fichier pour l'envoi",command=self.selectionner_envoi_fichier)
-        self.bouton_up_fichier = tkinter.Button(self.div_bouton,text="envoie du fichier",command=self.test_mode)
+        self.bouton_up_fichier = tkinter.Button(self.div_bouton,text="envoie du fichier",command=self.up_file)
 
         sleep(1)
         while True:
@@ -197,9 +199,99 @@ class main:
 
     def selectionner_envoi_fichier(self):
         test = tkinter.filedialog.askopenfile(title="séléctionner le fichier à envoyer")
-        self.file_sendable = test
         if test:
+            self.file_sendable = test
+            self.file_size = getsize(test.name)
             self.path_fichier_envoi = test.name
-            self.select_file.config(text=f"changer de fichier pour le téléchargement\nfichier actuelle : '{self.path_fichier_envoi}'")
+            self.select_file.config(text=f"changer de fichier pour l'envoi\nfichier actuelle : '{self.path_fichier_envoi}'")
             self.select_file.update()
+
+    def down_file(self):
+        if self.test_mode:
+            client = self.connexion_server_local
+            if self.path_down:
+                if self.listbox.get(self.listbox.curselection()):
+                    client.send(pickle.dumps(["#05#",self.listbox.get(self.listbox.curselection())]))
+                    while True:
+                        test = self.message_local
+                        if test:
+                            if test[0] == "#05#":
+                                with open(join(self.path_down,test[1]), 'wb') as f:
+                                        data = client.recv(int(test[2]))
+                                        try:
+                                            if data.decode("utf-8") == "stop":
+                                                f.close()
+                                                break
+                                        except:
+                                            pass 
+                                        f.write(data)
+                                break
+                            elif test[0] == "#50#":
+                                break
+        if not self.test_mode:
+            client = self.connexion_server_distant
+            if self.path_down:
+                if self.listbox.get(self.listbox.curselection()):
+                    client.send(pickle.dumps(["#05#",self.listbox.get(self.listbox.curselection())]))
+                    while True:
+                        test = self.message_local
+                        if test:
+                            if test[0] == "#05#":
+                                with open(join(self.path_down,test[1]), 'wb') as f:
+                                        data = client.recv(int(test[2]))
+                                        try:
+                                            if data.decode("utf-8") == "stop":
+                                                f.close()
+                                                break
+                                        except:
+                                            pass 
+                                        f.write(data)
+                                break
+                            elif test[0] == "#50#":
+                                break
+
+    def up_file(self):
+        if self.test_mode:
+            self.connexion_server_local.send(pickle.dumps(["#06#",""]))
+            if os.name == "nt":
+                test = self.path_fichier_envoi.split("\\")[-1]
+            else:
+                test = self.path_fichier_envoi.split("/")[-1]
+            tempo = self.path_fichier_envoi
+            if isfile(tempo):
+                self.connexion_server_local.send(pickle.dumps(["#06#",test,int(getsize(tempo)*1.2)]))
+                f = open(tempo, 'rb')
+                while True:
+                    l = f.read(int(getsize(tempo)*1.2))
+                    while (l):
+                        self.connexion_server_local.send(l)
+                        l = f.read(int(getsize(tempo)*1.2))
+                    if not l:
+                        self.connexion_server_local.send("stop".encode("utf-8"))
+                        f.close()
+                        break
+            else:
+                self.connexion_server_local.send(pickle.dumps(["#60#",""]))
+        if not self.test_mode:
+            self.connexion_server_distant.send(pickle.dumps(["#06#",""]))
+            tempo = self.path_fichier_envoi
+            if isfile(tempo):
+                if os.name == "nt":
+                    test = self.path_fichier_envoi.split("\\")[-1]
+                else:
+                    test = self.path_fichier_envoi.split("/")[-1]
+                self.connexion_server_distant.send(pickle.dumps(["#06#",test,int(getsize(tempo)*1.2)]))
+                f = open(tempo, 'rb')
+                while True:
+                    l = f.read(int(getsize(tempo)*1.2))
+                    while (l):
+                        self.connexion_server_distant.send(l)
+                        l = f.read(int(getsize(tempo)*1.2))
+                    if not l:
+                        self.connexion_server_distant.send("stop".encode("utf-8"))
+                        f.close()
+                        break
+            else:
+                self.connexion_server_distant.send(pickle.dumps(["#60#",""]))
+
 main()

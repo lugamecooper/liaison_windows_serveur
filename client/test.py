@@ -1,21 +1,45 @@
-import tkinter
-from tkinter import filedialog
-class main:
-    def __init__(self) -> None:
-        self.path = None
-        self.fen = tkinter.Tk()
-        self.fen.geometry("500x500")
-        self.select_folder = tkinter.Button(self.fen,text="choisissez un dossier",command=self.test)
+import socket
+from threading import Thread
 
-        self.select_folder.pack()
-        self.fen.mainloop()
+TCP_IP = 'localhost'
+TCP_PORT = 9001
+BUFFER_SIZE = 1024
 
-    def test(self):
-        test = filedialog.askopenfile(title="séléctionner le dossier cible", initialdir=self.path)
-        if test:
-            self.path = test.name
-            self.select_folder.config(text=f"changer de dossier\nactuelle : '{self.path}'")
-            self.select_folder.update()
-            print(test)
 
-main()
+class ClientThread(Thread):
+
+    def __init__(self, ip, port, sock):
+        Thread.__init__(self)
+        self.ip = ip
+        self.port = port
+        self.sock = sock
+        print(" New thread started for "+ip+":"+str(port))
+
+    def run(self):
+        filename = 'convocation ccf.pdf'
+        f = open(filename, 'rb')
+        while True:
+            l = f.read(BUFFER_SIZE)
+            while (l):
+                self.sock.send(l)
+                l = f.read(BUFFER_SIZE)
+            if not l:
+                f.close()
+                self.sock.close()
+                break
+
+
+tcpsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+tcpsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+tcpsock.bind((TCP_IP, 9001))
+
+while True:
+    tcpsock.listen(5)
+    print("Waiting for incoming connections...")
+    (conn, (ip, port)) = tcpsock.accept()
+    print('Got connection from ', (ip, port))
+    newthread = ClientThread(ip, port, conn)
+    newthread.start()
+
+for t in threads:
+    t.join()
