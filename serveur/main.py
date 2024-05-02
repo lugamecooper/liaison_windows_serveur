@@ -63,7 +63,7 @@ class main:
                         l = f.read(int(getsize(tempo)*1.2))
                         while (l):
                             client.send(l)
-                            l = f.read(int(getsize(tempo)*1.2))
+                            l = f.read(int(getsize(tempo)*1.2   ))
                         if not l:
                             client.send("stop".encode("utf-8"))
                             f.close()
@@ -74,22 +74,18 @@ class main:
                 while True:
                     test = pickle.loads(client.recv(1024))
                     if test:
+                        print("test 1",test)
                         if test[0] == "#06#":
-                            if isfile(join(self.path[client],test[1])):
-                                f = open(join(self.path[client],test[1]), 'wb')
-                                while True:
-                                    data = client.recv(int(test[2]))
-                                    try:
-                                        if data.decode("utf-8") == "stop":
-                                            print("test")
-                                            f.close()
-                                            break
-                                    except:
-                                        pass 
-                                    f.write(data)
-                                break
+                            f = open(join(self.path[client],test[1]), 'wb')
+                            while True:
+                                data = client.recv(int(test[2]))
+                                if not data:
+                                    f.close()
+                                    break
+                                f.write(data)
                         elif test[0] == "#60#":
                             break
+                        break
                 client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
         except Exception as er:
             try:
@@ -105,7 +101,7 @@ class main:
             except:
                 self.path.pop(client)
                 break
-            if msg_recu:
+            if msg_recu and "#" in msg_recu[0]:
                 self.commande(msg_recu,client)
 
     def co_ini_distant(self):
@@ -132,7 +128,7 @@ class main:
             except:
                 self.path.pop(client)
                 break
-            if msg_recu:
+            if msg_recu and "#" in msg_recu[0]:
                 self.commande(msg_recu,client)
 
     def co_ini_local(self):

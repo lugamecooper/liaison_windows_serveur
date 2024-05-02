@@ -40,7 +40,6 @@ class main:
         self.body.pack()
 
         self.fen.mainloop()
-        
 
     def affichage_init(self):
         self.label_init = tkinter.Label(self.body,text="séléctioner une option de connection")
@@ -252,12 +251,9 @@ class main:
 
     def up_file(self):
         if self.test_mode:
-            self.connexion_server_local.send(pickle.dumps(["#06#",""]))
-            if os.name == "nt":
-                test = self.path_fichier_envoi.split("\\")[-1]
-            else:
-                test = self.path_fichier_envoi.split("/")[-1]
+            test = self.path_fichier_envoi.split("/")[-1]
             tempo = self.path_fichier_envoi
+            self.connexion_server_local.send(pickle.dumps(["#06#",test,int(getsize(tempo)*1.2)]))
             if isfile(tempo):
                 self.connexion_server_local.send(pickle.dumps(["#06#",test,int(getsize(tempo)*1.2)]))
                 f = open(tempo, 'rb')
@@ -267,19 +263,16 @@ class main:
                         self.connexion_server_local.send(l)
                         l = f.read(int(getsize(tempo)*1.2))
                     if not l:
-                        self.connexion_server_local.send("stop".encode("utf-8"))
                         f.close()
                         break
             else:
                 self.connexion_server_local.send(pickle.dumps(["#60#",""]))
         if not self.test_mode:
-            self.connexion_server_distant.send(pickle.dumps(["#06#",""]))
+            test = self.path_fichier_envoi.split("/")[-1]
             tempo = self.path_fichier_envoi
+            self.connexion_server_distant.send(pickle.dumps(["#06#",test,int(getsize(tempo)*1.2)]))
             if isfile(tempo):
-                if os.name == "nt":
-                    test = self.path_fichier_envoi.split("\\")[-1]
-                else:
-                    test = self.path_fichier_envoi.split("/")[-1]
+                
                 self.connexion_server_distant.send(pickle.dumps(["#06#",test,int(getsize(tempo)*1.2)]))
                 f = open(tempo, 'rb')
                 while True:
