@@ -84,7 +84,11 @@ class main:
         self.frame_exploreur = tkinter.Frame(self.div_explorateur)
         self.bouton_déplacement_dossier = tkinter.Button(self.frame_exploreur,text="ouvrir le dossier",command=self.avance_fichier)
         self.bouton_retour_dossier = tkinter.Button(self.frame_exploreur,text="retour en arrière",command=self.recul_fichier)
-        
+        self.bouton_actualisation = tkinter.Button(self.frame_exploreur,text="actualiser",command=self.actualiser_fonction)
+        self.bouton_nouveau_dossier = tkinter.Button(self.frame_exploreur,text="nouveau dossier",command=self.nouveau_dossier)
+        self.bouton_suprimer_dossier = tkinter.Button(self.frame_exploreur,text="suprimer l'élément séléctioner",command=self.suprimer_dossier_fonction)
+
+
         self.div_bouton = tkinter.Frame(self.div_explorateur)
         
         self.select_folder = tkinter.Button(self.div_bouton,text="choisissez un dossier pour le téléchargement",command=self.selectionner_recup_fichier)
@@ -107,9 +111,11 @@ class main:
         scrollbar.config(command=self.listbox.yview)
         
         self.div_explorateur.pack()
-        
+        self.bouton_actualisation.pack(side=tkinter.LEFT,anchor="n")
         self.bouton_déplacement_dossier.pack(side=tkinter.LEFT,anchor="n")
         self.bouton_retour_dossier.pack(side=tkinter.LEFT,anchor="n")
+        self.bouton_nouveau_dossier.pack(side=tkinter.RIGHT,anchor="n")
+        self.bouton_suprimer_dossier.pack(side=tkinter.RIGHT,anchor="n")
         self.frame_exploreur.pack(side="top",anchor="n")
         self.div_bouton.pack(side="bottom")
 
@@ -140,7 +146,6 @@ class main:
                 self.message_local = None
                 pass
             if self.message_local:
-                print(self.message_local)
                 sleep(1)
                 if self.message_local[0] == "#03#":
                     self.listbox.delete(0,tkinter.END)
@@ -163,7 +168,6 @@ class main:
                 self.message_distant = None
                 pass
             if self.message_distant:
-                print(self.message_distant)
                 sleep(1)
                 if self.message_distant[0] == "#03#":
                     self.listbox.delete(0,tkinter.END)
@@ -255,7 +259,6 @@ class main:
             tempo = self.path_fichier_envoi
             self.connexion_server_local.send(pickle.dumps(["#06#",test,int(getsize(tempo)*1.2)]))
             if isfile(tempo):
-                self.connexion_server_local.send(pickle.dumps(["#06#",test,int(getsize(tempo)*1.2)]))
                 f = open(tempo, 'rb')
                 while True:
                     l = f.read(int(getsize(tempo)*1.2))
@@ -263,6 +266,8 @@ class main:
                         self.connexion_server_local.send(l)
                         l = f.read(int(getsize(tempo)*1.2))
                     if not l:
+                        sleep(2)
+                        self.connexion_server_local.send(pickle.dumps(["#60#",""]))
                         f.close()
                         break
             else:
@@ -286,5 +291,37 @@ class main:
                         break
             else:
                 self.connexion_server_distant.send(pickle.dumps(["#60#",""]))
+
+    def actualiser_fonction(self):
+        if self.test_mode:
+            self.connexion_server_local.send(pickle.dumps(["#02#",""]))
+        else:
+            self.connexion_server_distant.send(pickle.dumps(["#02#",""]))
+
+    def nouveau_dossier(self):
+        global fen_secondary
+        fen_secondary = tkinter.Toplevel(class_="nom de fichier",master=self.fen)
+        fen_secondary.geometry("300x300")
+        tkinter.Label(fen_secondary,text="enter un nom de dossier :").pack()
+        global text_entry
+        text_entry = tkinter.Entry(fen_secondary,width=120)
+        text_entry.pack()
+        def validation():
+            global nom_dossier
+            nom_dossier = text_entry.get()
+            if self.test_mode:
+                self.connexion_server_local.send(pickle.dumps(["#07#",nom_dossier]))
+            else:
+                self.connexion_server_distant.send(pickle.dumps(["#07#",nom_dossier]))
+            fen_secondary.destroy()
+        tkinter.Button(fen_secondary,text="vallidez le nom du dossier",command=validation).pack()
+        fen_secondary.mainloop()
+
+    def suprimer_dossier_fonction(self):
+        tempo = self.listbox.get(self.listbox.curselection())
+        if self.test_mode:
+            self.connexion_server_local.send(pickle.dumps(["#08#",tempo]))
+        else:
+            self.connexion_server_distant.send(pickle.dumps(["#08#",tempo]))
 
 main()

