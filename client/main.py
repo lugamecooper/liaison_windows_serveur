@@ -1,18 +1,18 @@
 from socket import socket,AF_INET,SOCK_STREAM
-import os
-import _thread
-import json
+from _thread import start_new_thread
+from json import load,dump
 import tkinter
-import pickle
+from pickle import loads,dumps
 from time import sleep
-import tkinter.filedialog
-from os.path import join,getsize,isfile
+from tkinter.filedialog import askdirectory,askopenfile
+from os.path import join,getsize,isfile,split
+from re import findall
 
 class main:
     def __init__(self) -> None:
-        self.config = json.load(open("config.json"))
-        _thread.start_new_thread(self.connexion_distant_thread,())
-        _thread.start_new_thread(self.connexion_local_thread,())
+        self.config = load(open(join(split(__file__)[0],"config.json")))
+        start_new_thread(self.connexion_distant_thread,())
+        start_new_thread(self.connexion_local_thread,())
 
         self.test_mode = None
         self.message_local = None
@@ -29,7 +29,11 @@ class main:
         self.menu_connection = tkinter.Menu(self.menu_bar,tearoff=0)
         self.menu_connection.add_command(label="connexion_distance",command=self.connexion_distance)
         self.menu_connection.add_command(label="connexion_local",command=self.connexion_local)
-        self.menu_bar.add_cascade(label="menu_connection",menu=self.menu_connection)
+        self.menu_bar.add_cascade(label="menu connection",menu=self.menu_connection)
+
+        self.menu_configuration = tkinter.Menu(self.menu_bar,tearoff=0)
+        self.menu_configuration.add_command(label="configurer les adresses ip",command=self.configuration_config)
+        self.menu_bar.add_cascade(label="menu configuration",menu=self.menu_configuration)
         
         self.fen.config(menu=self.menu_bar)
 
@@ -57,6 +61,7 @@ class main:
         
     def commun(self,para):
         self.body.destroy()
+        self.fen.update()
         self.body = tkinter.Frame(self.fen)
 
         self.label_init = tkinter.Label(self.body,text=f"connexion {para}")
@@ -75,9 +80,9 @@ class main:
 
         self.listbox.config(yscrollcommand=scrollbar.set,height=25,width=125)
         if self.test_mode:
-            self.connexion_server_local.send(pickle.dumps(["#02#"]))
+            self.connexion_server_local.send(dumps(["#02#"]))
         else:
-            self.connexion_server_distant.send(pickle.dumps(["#02#"]))
+            self.connexion_server_distant.send(dumps(["#02#"]))
         message = None
 
 
@@ -141,7 +146,7 @@ class main:
                 pass
         while True:
             try:
-                self.message_local = pickle.loads(self.connexion_server_local.recv(1024))
+                self.message_local = loads(self.connexion_server_local.recv(1024))
             except:
                 self.message_local = None
                 pass
@@ -163,7 +168,7 @@ class main:
                 pass
         while True:
             try:
-                self.message_distant = pickle.loads(self.connexion_server_distant.recv(1024))
+                self.message_distant = loads(self.connexion_server_distant.recv(1024))
             except:
                 self.message_distant = None
                 pass
@@ -177,31 +182,31 @@ class main:
 
     def envoi_commande(self):
         if self.test_mode:
-            self.connexion_server_local.send(pickle.dumps(["#01#",self.saisie_commande.get()]))
+            self.connexion_server_local.send(dumps(["#01#",self.saisie_commande.get()]))
         else:
-            self.connexion_server_distant.send(pickle.dumps(["#01#",self.saisie_commande.get()]))
+            self.connexion_server_distant.send(dumps(["#01#",self.saisie_commande.get()]))
 
     def avance_fichier(self):
         if self.test_mode:
-            self.connexion_server_local.send(pickle.dumps(["#03#",self.listbox.get(self.listbox.curselection())]))
+            self.connexion_server_local.send(dumps(["#03#",self.listbox.get(self.listbox.curselection())]))
         else:
-            self.connexion_server_distant.send(pickle.dumps(["#03#",self.listbox.get(self.listbox.curselection())]))
+            self.connexion_server_distant.send(dumps(["#03#",self.listbox.get(self.listbox.curselection())]))
 
     def recul_fichier(self):
         if self.test_mode:
-            self.connexion_server_local.send(pickle.dumps(["#04#"]))
+            self.connexion_server_local.send(dumps(["#04#"]))
         else:
-            self.connexion_server_distant.send(pickle.dumps(["#04#",]))
+            self.connexion_server_distant.send(dumps(["#04#",]))
 
     def selectionner_recup_fichier(self):
-        test = tkinter.filedialog.askdirectory(title="séléctionner le dossier pour le téléchargement", initialdir=self.path_down)
+        test = askdirectory(title="séléctionner le dossier pour le téléchargement", initialdir=self.path_down)
         if test:
             self.path_down = test
             self.select_folder.config(text=f"changer de dossier pour le téléchargement\ndossier actuelle : '{self.path_down}'")
             self.select_folder.update()
 
     def selectionner_envoi_fichier(self):
-        test = tkinter.filedialog.askopenfile(title="séléctionner le fichier à envoyer")
+        test = askopenfile(title="séléctionner le fichier à envoyer")
         if test:
             self.file_sendable = test
             self.file_size = getsize(test.name)
@@ -214,7 +219,7 @@ class main:
             client = self.connexion_server_local
             if self.path_down:
                 if self.listbox.get(self.listbox.curselection()):
-                    client.send(pickle.dumps(["#05#",self.listbox.get(self.listbox.curselection())]))
+                    client.send(dumps(["#05#",self.listbox.get(self.listbox.curselection())]))
                     while True:
                         test = self.message_local
                         if test:
@@ -235,7 +240,7 @@ class main:
             client = self.connexion_server_distant
             if self.path_down:
                 if self.listbox.get(self.listbox.curselection()):
-                    client.send(pickle.dumps(["#05#",self.listbox.get(self.listbox.curselection())]))
+                    client.send(dumps(["#05#",self.listbox.get(self.listbox.curselection())]))
                     while True:
                         test = self.message_local
                         if test:
@@ -257,7 +262,7 @@ class main:
         if self.test_mode:
             test = self.path_fichier_envoi.split("/")[-1]
             tempo = self.path_fichier_envoi
-            self.connexion_server_local.send(pickle.dumps(["#06#",test,int(getsize(tempo)*1.2)]))
+            self.connexion_server_local.send(dumps(["#06#",test,int(getsize(tempo)*1.2)]))
             if isfile(tempo):
                 f = open(tempo, 'rb')
                 while True:
@@ -267,18 +272,17 @@ class main:
                         l = f.read(int(getsize(tempo)*1.2))
                     if not l:
                         sleep(2)
-                        self.connexion_server_local.send(pickle.dumps(["#60#",""]))
+                        self.connexion_server_local.send(dumps(["#60#",""]))
                         f.close()
                         break
             else:
-                self.connexion_server_local.send(pickle.dumps(["#60#",""]))
+                self.connexion_server_local.send(dumps(["#60#",""]))
         if not self.test_mode:
             test = self.path_fichier_envoi.split("/")[-1]
             tempo = self.path_fichier_envoi
-            self.connexion_server_distant.send(pickle.dumps(["#06#",test,int(getsize(tempo)*1.2)]))
+            self.connexion_server_distant.send(dumps(["#06#",test,int(getsize(tempo)*1.2)]))
             if isfile(tempo):
-                
-                self.connexion_server_distant.send(pickle.dumps(["#06#",test,int(getsize(tempo)*1.2)]))
+                self.connexion_server_distant.send(dumps(["#06#",test,int(getsize(tempo)*1.2)]))
                 f = open(tempo, 'rb')
                 while True:
                     l = f.read(int(getsize(tempo)*1.2))
@@ -290,13 +294,13 @@ class main:
                         f.close()
                         break
             else:
-                self.connexion_server_distant.send(pickle.dumps(["#60#",""]))
+                self.connexion_server_distant.send(dumps(["#60#",""]))
 
     def actualiser_fonction(self):
         if self.test_mode:
-            self.connexion_server_local.send(pickle.dumps(["#02#",""]))
+            self.connexion_server_local.send(dumps(["#02#",""]))
         else:
-            self.connexion_server_distant.send(pickle.dumps(["#02#",""]))
+            self.connexion_server_distant.send(dumps(["#02#",""]))
 
     def nouveau_dossier(self):
         global fen_secondary
@@ -310,9 +314,9 @@ class main:
             global nom_dossier
             nom_dossier = text_entry.get()
             if self.test_mode:
-                self.connexion_server_local.send(pickle.dumps(["#07#",nom_dossier]))
+                self.connexion_server_local.send(dumps(["#07#",nom_dossier]))
             else:
-                self.connexion_server_distant.send(pickle.dumps(["#07#",nom_dossier]))
+                self.connexion_server_distant.send(dumps(["#07#",nom_dossier]))
             fen_secondary.destroy()
         tkinter.Button(fen_secondary,text="vallidez le nom du dossier",command=validation).pack()
         fen_secondary.mainloop()
@@ -320,8 +324,137 @@ class main:
     def suprimer_dossier_fonction(self):
         tempo = self.listbox.get(self.listbox.curselection())
         if self.test_mode:
-            self.connexion_server_local.send(pickle.dumps(["#08#",tempo]))
+            self.connexion_server_local.send(dumps(["#08#",tempo]))
         else:
-            self.connexion_server_distant.send(pickle.dumps(["#08#",tempo]))
+            self.connexion_server_distant.send(dumps(["#08#",tempo]))
+
+    def configuration_config(self):
+        self.frame_config = tkinter.Toplevel(self.fen,class_="configurateur")
+        self.frame_config.geometry("650x500")
+
+        self.frame_local = tkinter.Frame(self.frame_config)
+        self.frame_distant = tkinter.Frame(self.frame_config)
+
+        self.label_local = tkinter.Label(self.frame_local,text=f"ip local : {self.config[0]}\nport local : {self.config[1]}")
+        self.frame_config_local_1 = tkinter.Frame(self.frame_local)
+        self.label_local_1 = tkinter.Label(self.frame_config_local_1, text="ip : ")
+        self.entry_local_1 = tkinter.Entry(self.frame_config_local_1,width=40)
+        self.bouton_local_1 = tkinter.Button(self.frame_config_local_1,text="vallidez l'ip",command=self.config_local_ip)
+
+        self.frame_config_local_2 = tkinter.Frame(self.frame_local)
+        self.label_local_2 = tkinter.Label(self.frame_config_local_2, text="port : ")
+        self.entry_local_2 = tkinter.Entry(self.frame_config_local_2,width=40)
+        self.bouton_local_2 = tkinter.Button(self.frame_config_local_2,text="vallidez le port",command=self.config_local_port)
+
+        self.label_local.pack(side="top",anchor="n")
+
+        self.frame_config_local_1.pack(side="top",anchor="n")
+        
+        self.label_local_1.pack(side="left",anchor="n")
+        self.entry_local_1.pack(side="top",anchor="n")
+        self.bouton_local_1.pack(side="right",anchor="n")
+
+        self.frame_config_local_2.pack(side="top",anchor="n")
+        self.label_local_2.pack(side="left",anchor="n")
+        self.entry_local_2.pack(side="top",anchor="n")
+        self.bouton_local_2.pack(side="right",anchor="n")
+
+        self.label_distant = tkinter.Label(self.frame_distant,text=f"ip distant : {self.config[2]}\nport distant : {self.config[3]}")
+        self.frame_config_distant_1 = tkinter.Frame(self.frame_distant)
+        self.label_distant_1 = tkinter.Label(self.frame_config_distant_1, text="ip : ")
+        self.entry_distant_1 = tkinter.Entry(self.frame_config_distant_1,width=40)
+        self.bouton_distant_1 = tkinter.Button(self.frame_config_distant_1,text="vallidez l'ip",command=self.config_distant_ip)
+
+        self.frame_config_distant_2 = tkinter.Frame(self.frame_distant)
+        self.label_distant_2 = tkinter.Label(self.frame_config_distant_2, text="port : ")
+        self.entry_distant_2 = tkinter.Entry(self.frame_config_distant_2,width=40)
+        self.bouton_distant_2 = tkinter.Button(self.frame_config_distant_2,text="vallidez le port",command=self.config_distant_port)
+
+        self.label_warning = tkinter.Label(self.frame_config,font=("Arial", 12) ,text="attention la modification des ports peut entrainer des erreurs inentendus\nwarning modify the port can cause some isues")
+
+        self.label_distant.pack(side="top",anchor="n")
+        
+        self.frame_config_distant_1.pack(side="top",anchor="n")
+        self.label_distant_1.pack(side="left",anchor="n")
+        self.entry_distant_1.pack(side="top",anchor="n")
+        self.bouton_distant_1.pack(side="right",anchor="n")
+
+        self.frame_config_distant_2.pack(side="top",anchor="n")
+        self.label_distant_2.pack(side="left",anchor="n")
+        self.entry_distant_2.pack(side="top",anchor="n")
+        self.bouton_distant_2.pack(side="right",anchor="n")
+
+        self.label_warning.pack(side="bottom",anchor="center")
+
+        self.frame_local.pack(side="left")
+        self.frame_distant.pack(side="right")
+
+        self.frame_config.mainloop()
+
+    def config_distant_ip(self):
+        if self.entry_distant_1.get():
+            test = True
+            try:
+                tempo = findall(r"(\d{1,3}).(\d{1,3}).(\d{1,3}).(\d{1,3})",self.entry_distant_1.get())[0]
+            except:
+                test = False
+                tempo = []
+            for i in tempo:
+                try:
+                    i = int(i)
+                    if i < 256 and i >= 0:
+                        pass
+                    else:
+                        test = False
+                except:
+                    pass
+            if test:
+                self.config[2] = ".".join(tempo)
+                dump(self.config,open(join(split(__file__)[0],"config.json"),"w"))
+                self.label_distant.config(text=f"ip distant : {self.config[2]}\nport distant : {self.config[3]}")
+                self.frame_distant.update()
+
+    def config_local_ip(self):
+        if self.entry_local_1.get():
+            test = True
+            try:
+                tempo = findall(r"(\d{1,3}).(\d{1,3}).(\d{1,3}).(\d{1,3})",self.entry_local_1.get())[0]
+            except:
+                test = False
+                tempo = []
+            for i in tempo:
+                try:
+                    i = int(i)
+                    if i < 256 and i >= 0:
+                        pass
+                    else:
+                        test = False
+                except:
+                    pass
+            if test:
+                self.config[0] = ".".join(tempo)
+                dump(self.config,open(join(split(__file__)[0],"config.json"),"w"))
+                self.label_local.config(text=f"ip local : {self.config[0]}\nport local : {self.config[1]}")
+                self.frame_local.update()
+
+    def config_distant_port(self):
+        try:
+            if self.entry_distant_2.get():
+                self.config[4] = int(self.entry_distant_2)
+                dump(self.config,open(join(split(__file__)[0],"config.json"),"w"))
+                self.label_distant.config(text=f"ip distant : {self.config[2]}\nport distant : {self.config[3]}")
+                self.frame_local.update()
+        except:
+            pass
+
+    def config_local_port(self):
+        try:
+            if self.entry_local_2.get():
+                self.config[1] = int(self.entry_local_2)
+                dump(self.config,open(join(split(__file__)[0],"config.json"),"w"))
+                self.label_distant.config(text=f"ip local : {self.config[0]}\nport local : {self.config[1]}")
+                self.frame_local.update()
+        except:
+            pass
 
 main()

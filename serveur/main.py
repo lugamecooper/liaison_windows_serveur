@@ -1,15 +1,15 @@
 from socket import socket,AF_INET,SOCK_STREAM
-from os.path import join,split,isdir,isfile,getsize
+from os.path import join,isdir,isfile,getsize,split
 from subprocess import Popen,PIPE
 from json import load
-import os
+from os import name,listdir,mkdir,system,remove
 from _thread import start_new_thread,exit as E
-import re
-import pickle
+from re import findall
+from pickle import loads,dumps
 class main:
     def __init__(self) -> None:
-        if os.name == 'nt':
-            self.path_base = re.findall(r"([\w| ]*:\\)",__file__)[0] 
+        if name == 'nt':
+            self.path_base = findall(r"([\w| ]*:\\)",__file__)[0] 
         else:
             self.path_base = "/"
         self.path = {}
@@ -22,16 +22,16 @@ class main:
     def commande(self,commande = list,client = socket()):
         try:
             if "#01#" == commande[0]:
-                client.send(pickle.dumps(["#01#",Popen(commande[1],stdout=PIPE).communicate()[0]]))
+                client.send(dumps(["#01#",Popen(commande[1],stdout=PIPE).communicate()[0]]))
             elif "#02#" == commande[0]:
-                client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
+                client.send(dumps(["#03#",listdir(self.path[client])]))
             elif "#03#" == commande[0]:
                 if isdir(join(self.path[client],commande[1])):
                     self.path[client] = join(self.path[client],commande[1])
-                    client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
+                    client.send(dumps(["#03#",listdir(self.path[client])]))
             elif "#04#" == commande[0]:
-                if os.name == "nt":
-                    if self.path[client] == re.findall(r"([\w| ]*:\\)",__file__)[0]:
+                if name == "nt":
+                    if self.path[client] == findall(r"([\w| ]*:\\)",__file__)[0]:
                         pass
                     else:
                         test = self.path[client].split("\\")
@@ -52,11 +52,11 @@ class main:
                             self.path[client] += test[i]+"/"
                     else:
                         pass
-                client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
+                client.send(dumps(["#03#",listdir(self.path[client])]))
             elif commande[0] == "#05#":
                 tempo = join(self.path[client],commande[1])
                 if isfile(tempo):
-                    client.send(pickle.dumps(["#05#",commande[1],int(getsize(tempo)*1.2)]))
+                    client.send(dumps(["#05#",commande[1],int(getsize(tempo)*1.2)]))
                     f = open(tempo, 'rb')
                     while True:
                         l = f.read(int(getsize(tempo)*1.2))
@@ -68,7 +68,7 @@ class main:
                             f.close()
                             break
                 else:
-                    client.send(pickle.dumps(["#50#",""]))
+                    client.send(dumps(["#50#",""]))
             elif commande[0] == "#06#":
                 while True:
                     test = commande
@@ -78,9 +78,9 @@ class main:
                             while True:
                                 data = client.recv(int(test[2]))
                                 try:
-                                    if pickle.loads(data) == ["#60#",""]:
+                                    if loads(data) == ["#60#",""]:
                                         f.close()
-                                        client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
+                                        client.send(dumps(["#03#",listdir(self.path[client])]))
                                         print("test")
                                         break
                                 except Exception as er:
@@ -90,33 +90,33 @@ class main:
                         elif test[0] == "#60#":
                             break
                         break
-                client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
+                client.send(dumps(["#03#",listdir(self.path[client])]))
             elif commande[0] == "#07#":
                 if isdir(join(self.path[client],commande[1])):
                     pass
                 else:
-                    os.mkdir(join(self.path[client],commande[1]))
-                    client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
+                    mkdir(join(self.path[client],commande[1]))
+                    client.send(dumps(["#03#",listdir(self.path[client])]))
             elif commande[0] == "#08#":
                 if isdir(join(self.path[client],commande[1])):
-                    if os.name == "nt":
-                        os.system(f"rmdir {join(self.path[client],commande[1])} /S /Q")
+                    if name == "nt":
+                        system(f"rmdir {join(self.path[client],commande[1])} /S /Q")
                     else:
-                        os.system(f"rm {join(self.path[client],commande[1])} -r")
+                        system(f"rm {join(self.path[client],commande[1])} -r")
                 else:
-                    os.remove(join(self.path[client],commande[1]))
-                client.send(pickle.dumps(["#03#",os.listdir(self.path[client])]))
+                    remove(join(self.path[client],commande[1]))
+                client.send(dumps(["#03#",listdir(self.path[client])]))
         except Exception as er:
             try:
-                client.send(pickle.dumps(["#er#",f"{er}".encode("utf-8")]))
+                client.send(dumps(["#er#",f"{er}".encode("utf-8")]))
             except:
                 pass
 
     def on_new_client_distant(self,client = socket):
-        client.send(pickle.dumps(["#01#",os.name,self.config[2],self.config[3]]))
+        client.send(dumps(["#01#",name,self.config[2],self.config[3]]))
         while True:
             try:
-                msg_recu = pickle.loads(client.recv(4096))
+                msg_recu = loads(client.recv(4096))
             except:
                 self.path.pop(client)
                 break
@@ -140,10 +140,10 @@ class main:
 
     def on_new_client_local(self,client = socket):
         self.path[client] = self.path_base
-        client.send(pickle.dumps(["#01#",os.name,self.config[0],self.config[1]]))
+        client.send(dumps(["#01#",name,self.config[0],self.config[1]]))
         while True:
             try:
-                msg_recu = pickle.loads(client.recv(4096))
+                msg_recu = loads(client.recv(4096))
             except:
                 self.path.pop(client)
                 break
