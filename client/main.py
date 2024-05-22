@@ -316,7 +316,7 @@ class main:
                                 with open(join(self.path_down,test[1]), 'wb') as f:
                                         data = client.recv(int(test[2]))
                                         try:
-                                            if data.decode("utf-8") == "stop":
+                                            if loads(data) == "stop":
                                                 f.close()
                                                 break
                                         except:
@@ -337,7 +337,7 @@ class main:
                                 with open(join(self.path_down,test[1]), 'wb') as f:
                                         data = client.recv(int(test[2]))
                                         try:
-                                            if data.decode("utf-8") == "stop":
+                                            if loads(data) == "stop":
                                                 f.close()
                                                 break
                                         except:
@@ -379,7 +379,7 @@ class main:
                         self.connexion_server_distant.send(l)
                         l = f.read(int(getsize(tempo)*1.2))
                     if not l:
-                        self.connexion_server_distant.send("stop".encode("utf-8"))
+                        self.connexion_server_distant.send(dumps("stop"))
                         f.close()
                         break
             else:

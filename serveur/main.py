@@ -99,7 +99,6 @@ class main:
                                     if loads(data) == ["#60#",""]:
                                         f.close()
                                         client.send(dumps(["#03#",listdir(self.path[client])]))
-                                        
                                         break
                                 except Exception as er:
                                     pass
