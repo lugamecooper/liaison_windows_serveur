@@ -1,13 +1,22 @@
 from socket import socket,AF_INET,SOCK_STREAM
 from os.path import join,isdir,isfile,getsize,split
 from subprocess import Popen,PIPE
-from json import load
+from json import load,dump
 from os import name,listdir,mkdir,system,remove
 from _thread import start_new_thread,exit as E
 from re import findall
 from pickle import loads,dumps
+from restart import restart
+from time import sleep
+
 class main:
     def __init__(self) -> None:
+        if not isdir(join(split(__file__)[0],"users")):
+            mkdir(join(split(__file__)[0],"users"))
+            dump({"admin":["admin",None,"root"]},open(join(split(__file__)[0],join("users","admin.json")),"w"))
+        self.liste_classe_utilisateur = listdir(join(split(__file__)[0],"users"))
+        if self.liste_classe_utilisateur == []:
+            self.liste_classe_utilisateur = None
         if name == 'nt':
             self.path_base = findall(r"([\w| ]*:\\)",__file__)[0] 
         else:
@@ -17,13 +26,22 @@ class main:
         start_new_thread(self.co_ini_distant,())
         start_new_thread(self.co_ini_local,())
         while True:
-            pass
+            input()
+            self.restart()
 
-    def commande(self,commande = list,client = socket()):
+    def restart(self):
+        start_new_thread(restart.test,())
+        sleep(10.5)
+        for client in self.path:
+            client.send(dumps(["#99#",""]))
+        exit()
+
+    def commande(self,commande = list,client = socket(),base_path = str()):
         try:
             if "#01#" == commande[0]:
                 client.send(dumps(["#01#",Popen(commande[1],stdout=PIPE).communicate()[0]]))
             elif "#02#" == commande[0]:
+                sleep(0.5)
                 client.send(dumps(["#03#",listdir(self.path[client])]))
             elif "#03#" == commande[0]:
                 if isdir(join(self.path[client],commande[1])):
@@ -31,7 +49,7 @@ class main:
                     client.send(dumps(["#03#",listdir(self.path[client])]))
             elif "#04#" == commande[0]:
                 if name == "nt":
-                    if self.path[client] == findall(r"([\w| ]*:\\)",__file__)[0]:
+                    if self.path[client] == base_path:
                         pass
                     else:
                         test = self.path[client].split("\\")
@@ -44,7 +62,7 @@ class main:
                         for i in range(len(test)-1):
                             self.path[client] += test[i]+"\\"
                 else:
-                    if not self.path[client] == "/":
+                    if not self.path[client] == base_path:
                         test = self.path[client].split("/")
                         test[0] = "/"
                         self.path[client] = ""
@@ -81,7 +99,7 @@ class main:
                                     if loads(data) == ["#60#",""]:
                                         f.close()
                                         client.send(dumps(["#03#",listdir(self.path[client])]))
-                                        print("test")
+                                        
                                         break
                                 except Exception as er:
                                     pass
@@ -108,20 +126,34 @@ class main:
                 client.send(dumps(["#03#",listdir(self.path[client])]))
         except Exception as er:
             try:
-                client.send(dumps(["#er#",f"{er}".encode("utf-8")]))
+                client.send(dumps(["#er#",f"{er}"]))
             except:
                 pass
 
     def on_new_client_distant(self,client = socket):
-        client.send(dumps(["#01#",name,self.config[2],self.config[3]]))
+        connected = False
+        self.path[client] = self.path_base
+        path_base = self.path_base
+        client.send(dumps(["#00#",name,self.config[2],self.config[3],self.liste_classe_utilisateur]))
         while True:
             try:
                 msg_recu = loads(client.recv(4096))
             except:
                 self.path.pop(client)
                 break
-            if msg_recu and "#" in msg_recu[0]:
-                start_new_thread(self.commande,(msg_recu,client,))
+            if msg_recu and "#" in msg_recu[0] and connected:
+                start_new_thread(self.commande,(msg_recu,client,path_base,))
+            elif msg_recu and "#81#" == msg_recu[0] and not connected:
+                connected,path_base = self.connection(msg_recu,client)
+                if path_base == None:
+                    path_base = self.path_base
+                sleep(1)
+                if connected:
+                    client.send(dumps(["#81#",connected]))
+                    sleep(0.1)
+                    client.send(dumps(["#03#",listdir(self.path[client])]))
+                else:
+                    client.send(dumps(["#81#",connected]))
 
     def co_ini_distant(self):
         if self.config[2] == "127.0.0.1":
@@ -137,18 +169,30 @@ class main:
             del info_connexion
             start_new_thread(self.on_new_client_distant,(self.client,))
 
-
     def on_new_client_local(self,client = socket):
+        connected = False
         self.path[client] = self.path_base
-        client.send(dumps(["#01#",name,self.config[0],self.config[1]]))
+        path_base = self.path_base
+        client.send(dumps(["#00#",name,self.config[0],self.config[1],self.liste_classe_utilisateur]))
         while True:
             try:
                 msg_recu = loads(client.recv(4096))
             except:
                 self.path.pop(client)
                 break
-            if msg_recu and "#" in msg_recu[0]:
-                self.commande(msg_recu,client)
+            if msg_recu and "#" in msg_recu[0] and connected:
+                start_new_thread(self.commande,(msg_recu,client,path_base,))
+            elif msg_recu and "#81#" == msg_recu[0] and not connected:
+                connected,path_base = self.connection(msg_recu,client)
+                if path_base == None:
+                    path_base = self.path_base
+                sleep(1)
+                if connected:
+                    client.send(dumps(["#81#",connected]))
+                    sleep(0.1)
+                    client.send(dumps(["#03#",listdir(self.path[client])]))
+                else:
+                    client.send(dumps(["#81#",connected]))
 
     def co_ini_local(self):
         while True:
@@ -161,5 +205,19 @@ class main:
             self.client,info_connexion = self.connexion_principale_local.accept()
             del info_connexion
             start_new_thread(self.on_new_client_local,(self.client,))
+
+    def connection(self,msg_recu,client = socket()):
+        connection_valide = False
+        path_base = None
+        try:
+            liste_login = load(open(join(split(__file__)[0],join("users",self.liste_classe_utilisateur[self.liste_classe_utilisateur.index(msg_recu[-1])]))))
+            if liste_login.get(msg_recu[1]["user"])[0] == msg_recu[1]["password"]:
+                connection_valide = True
+                if liste_login.get(msg_recu[1]["user"])[1]:
+                    self.path[client] = liste_login.get(msg_recu[1]["user"])[1]
+                    path_base = liste_login.get(msg_recu[1]["user"])[1]
+        except:
+            pass
+        return connection_valide,path_base
 
 main()
