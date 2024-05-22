@@ -14,12 +14,14 @@ class main:
         start_new_thread(self.connexion_distant_thread,())
         start_new_thread(self.connexion_local_thread,())
 
+        self.exit_test = False
         self.test_mode = None
         self.message_local = None
         self.message_distant = None
         self.path_down = None
         self.path_fichier_envoi = None
         self.file_size = None
+        self.connected = False
 
         self.fen = tkinter.Tk(className="client_liaison_windows_serveur")
         self.fen.geometry(f"{self.fen.winfo_screenwidth()}x{self.fen.winfo_screenheight()}")
@@ -45,20 +47,73 @@ class main:
 
         self.fen.mainloop()
 
+        while True:
+            if self.exit_test:
+                exit()
+            try:
+                self.fen.configure()
+            except:
+                exit()
+
     def affichage_init(self):
         self.label_init = tkinter.Label(self.body,text="séléctioner une option de connection")
         self.label_init.pack()
 
+    def login(self):
+        if self.test_mode:
+            self.message_config = self.message_local_config
+        else:
+            self.message_config = self.message_distant_config
+        self.frame_login = tkinter.Frame(self.fen)
+        self.string_var = tkinter.StringVar()
+        self.string_var.set(self.message_config[4][0])
+        self.login_menu_dropdown = tkinter.OptionMenu(self.frame_login,self.string_var,*self.message_config[4])
+
+        self.frame_login_entry = tkinter.Frame(self.frame_login)
+        self.login_label = tkinter.Label(self.frame_login_entry,text="nom d'utilisateur")
+        self.login_entry = tkinter.Entry(self.frame_login_entry,width=40)
+
+        self.frame_password_entry = tkinter.Frame(self.frame_login)
+        self.login_password_label = tkinter.Label(self.frame_password_entry,text="mots de passe")
+        self.password_entry = tkinter.Entry(self.frame_password_entry,width=40)
+
+        self.login_menu_dropdown.pack()
+
+        self.login_label.pack(side="top",anchor="nw")
+        self.login_entry.pack(side="top",anchor="ne")
+        self.frame_login_entry.pack()
+
+        self.login_password_label.pack(side="top",anchor="nw")
+        self.frame_password_entry.pack(side="top",anchor="ne")
+        self.password_entry.pack()
+        self.boutton_login = tkinter.Button(self.frame_login,text="se connecter",command=self.send_login).pack() # faire la fonction de connexion
+        self.label_login = tkinter.Label(self.frame_login,text="")
+        self.label_login.pack()
+        self.frame_login.pack()
+
+    def send_login(self):
+        if self.test_mode:
+            server = self.connexion_server_local
+        else:
+            server = self.connexion_server_distant
+        server.send(dumps(["#81#",{"user":self.login_entry.get(),"password":self.password_entry.get()},self.string_var.get()]))
+
     def connexion_distance(self):
         self.label_init.destroy()
         self.test_mode = 0
-        self.commun("distance")
-        
+        if self.message_distant_config[4] == None:
+            self.commun("distante")
+        else:
+            self.login()
+
     def connexion_local(self):
         self.label_init.destroy()
         self.test_mode = 1
-        self.commun("local")
-        
+        if self.message_local_config[4] == None:
+            self.commun("local")
+        else:
+            self.login()
+
     def commun(self,para):
         self.body.destroy()
         self.fen.update()
@@ -146,7 +201,7 @@ class main:
                 pass
         while True:
             try:
-                self.message_local = loads(self.connexion_server_local.recv(1024))
+                self.message_local = loads(self.connexion_server_local.recv(4096))
             except:
                 self.message_local = None
                 pass
@@ -157,6 +212,24 @@ class main:
                     for i in self.message_local[1]:
                         self.listbox.insert(tkinter.END,i)
                     self.listbox.update()
+                elif self.message_local[0] == "#00#":
+                    self.message_local_config = self.message_local
+                elif self.message_local[0] == "#99#":
+                    self.exit()
+                elif self.message_local[0] == "#81#":
+                    self.connected = self.message_local[1]
+                    if self.connected:
+                        self.frame_login.destroy()
+                        self.fen.update()
+                        if self.test_mode:
+                            self.commun("local")
+                        else:
+                            self.commun("distante")
+                    else:
+                        self.label_login.config(text="connexion échoué")
+                        self.frame_login.update()
+                else:
+                    pass
 
     def connexion_distant_thread(self):
         while True:
@@ -179,6 +252,22 @@ class main:
                     for i in self.message_distant[1]:
                         self.listbox.insert(tkinter.END,i)
                     self.listbox.update()
+                elif self.message_distant[0] == "#00#":
+                    self.message_distant_config = self.message_distant
+                elif self.message_distant[0] == "#99#":
+                    self.exit()
+                elif self.message_distant[0] == "#81#":
+                    self.connected = self.message_distant[1]
+                    if self.connected:
+                        self.frame_login.destroy()
+                        self.fen.update()
+                        if self.test_mode:
+                            self.commun("local")
+                        else:
+                            self.commun("distante")
+                    else:
+                        self.label_login.config(text="connexion échoué")
+                        self.frame_login.update()
 
     def envoi_commande(self):
         if self.test_mode:
@@ -456,5 +545,18 @@ class main:
                 self.frame_local.update()
         except:
             pass
+
+    def exit(self):
+        self.fen.quit()
+        sleep(0.2)
+        fen_exit = tkinter.Tk(className="message serveur")
+        tkinter.Label(fen_exit,text="le serveur à redémarer").pack()
+        tkinter.Button(fen_exit,text="quitter",command=self.test_exit).pack()
+        fen_exit.geometry("300x300")
+        fen_exit.mainloop()
+
+    def test_exit(self):
+        self.exit_test = True
+        exit()
 
 main()
