@@ -1,3 +1,7 @@
 /output
 /exe
 /serveur/__pycache__
+/client/.vscode
+/client/.pytest_cache
+/test force
+/test.bd

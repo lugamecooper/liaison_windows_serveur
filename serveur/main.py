@@ -2,7 +2,7 @@ from socket import socket,AF_INET,SOCK_STREAM
 from os.path import join,isdir,isfile,getsize,split
 from subprocess import Popen,PIPE
 from json import load,dump
-from os import name,listdir,mkdir,system,remove
+from os import name,listdir,mkdir,system,remove,rename
 from _thread import start_new_thread,exit as E
 from re import findall
 from pickle import loads,dumps
@@ -26,12 +26,15 @@ class main:
         start_new_thread(self.co_ini_distant,())
         start_new_thread(self.co_ini_local,())
         while True:
-            input()
-            self.restart()
+            try:
+                input()
+                self.restart()
+            except:
+                exit()
 
     def restart(self):
-        start_new_thread(restart.test,())
-        sleep(10.5)
+        start_new_thread(restart,())
+        sleep(9.5)
         for client in self.path:
             client.send(dumps(["#99#",""]))
         exit()
@@ -39,7 +42,7 @@ class main:
     def commande(self,commande = list,client = socket(),base_path = str()):
         try:
             if "#01#" == commande[0]:
-                client.send(dumps(["#01#",Popen(commande[1],stdout=PIPE).communicate()[0]]))
+                client.send(dumps(["#01#",Popen(commande[1],shell=True,stdout=PIPE).communicate()[0]]))
             elif "#02#" == commande[0]:
                 sleep(0.5)
                 client.send(dumps(["#03#",listdir(self.path[client])]))
@@ -96,6 +99,7 @@ class main:
                             while True:
                                 data = client.recv(int(test[2]))
                                 try:
+                                    print(loads(data))
                                     if loads(data) == ["#60#",""]:
                                         f.close()
                                         client.send(dumps(["#03#",listdir(self.path[client])]))
@@ -104,6 +108,7 @@ class main:
                                     pass
                                 f.write(data)
                                 data = ""
+                            break
                         elif test[0] == "#60#":
                             break
                         break
@@ -123,6 +128,12 @@ class main:
                 else:
                     remove(join(self.path[client],commande[1]))
                 client.send(dumps(["#03#",listdir(self.path[client])]))
+            elif commande[0] == "#09#":
+                try:
+                    rename(commande[1][0],commande[1][1])
+                    client.send(dumps(["#03#",listdir(self.path[client])]))
+                except:
+                    client.send(dumps(["#er#","une erreure est survenue lors du renommage du fichier ou du dossier"]))
         except Exception as er:
             try:
                 client.send(dumps(["#er#",f"{er}"]))
@@ -141,7 +152,7 @@ class main:
                 self.path.pop(client)
                 break
             if msg_recu and "#" in msg_recu[0] and connected:
-                start_new_thread(self.commande,(msg_recu,client,path_base,))
+                self.commande(msg_recu,client,path_base)
             elif msg_recu and "#81#" == msg_recu[0] and not connected:
                 connected,path_base = self.connection(msg_recu,client)
                 if path_base == None:
@@ -180,7 +191,7 @@ class main:
                 self.path.pop(client)
                 break
             if msg_recu and "#" in msg_recu[0] and connected:
-                start_new_thread(self.commande,(msg_recu,client,path_base,))
+                self.commande(msg_recu,client,path_base)
             elif msg_recu and "#81#" == msg_recu[0] and not connected:
                 connected,path_base = self.connection(msg_recu,client)
                 if path_base == None:

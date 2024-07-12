@@ -14,6 +14,7 @@ class main:
         start_new_thread(self.connexion_distant_thread,())
         start_new_thread(self.connexion_local_thread,())
 
+        self.connected = False
         self.exit_test = False
         self.test_mode = None
         self.message_local = None
@@ -21,7 +22,6 @@ class main:
         self.path_down = None
         self.path_fichier_envoi = None
         self.file_size = None
-        self.connected = False
 
         self.fen = tkinter.Tk(className="client_liaison_windows_serveur")
         self.fen.geometry(f"{self.fen.winfo_screenwidth()}x{self.fen.winfo_screenheight()}")
@@ -35,6 +35,10 @@ class main:
 
         self.menu_configuration = tkinter.Menu(self.menu_bar,tearoff=0)
         self.menu_configuration.add_command(label="configurer les adresses ip",command=self.configuration_config)
+        self.menu_configuration.add_command(label="ajout utilisateur",command=self.configuration_config)
+        self.menu_configuration.add_command(label="supression utilisateur",command=self.configuration_config)
+        self.menu_configuration.add_command(label="ajout groupe utilisateur",command=self.configuration_config)
+        self.menu_configuration.add_command(label="supression groupe utilisateur",command=self.configuration_config)
         self.menu_bar.add_cascade(label="menu configuration",menu=self.menu_configuration)
         
         self.fen.config(menu=self.menu_bar)
@@ -49,7 +53,7 @@ class main:
 
         while True:
             if self.exit_test:
-                exit()
+                self.fen.quit()
             try:
                 self.fen.configure()
             except:
@@ -119,15 +123,20 @@ class main:
         self.fen.update()
         self.body = tkinter.Frame(self.fen)
 
+        self.br = tkinter.Label(self.body,text="")
         self.label_init = tkinter.Label(self.body,text=f"connexion {para}")
         self.zone_commande_entre = tkinter.Frame(self.body)
         self.saisie_commande = tkinter.Entry(self.zone_commande_entre,width=120)
         self.bouton_envoi_commande = tkinter.Button(self.zone_commande_entre,text="envoi de la commande",command=self.envoi_commande)
+        self.label_retour_commande = tkinter.Label(self.zone_commande_entre,text="")
 
+
+        self.br.pack()
         self.label_init.pack()
         self.saisie_commande.pack()
         self.zone_commande_entre.pack()
         self.bouton_envoi_commande.pack()
+        self.label_retour_commande.pack()
 
         self.div_explorateur = tkinter.Frame(self.fen)
         self.listbox = tkinter.Listbox(self.div_explorateur)
@@ -146,6 +155,7 @@ class main:
         self.bouton_retour_dossier = tkinter.Button(self.frame_exploreur,text="retour en arrière",command=self.recul_fichier)
         self.bouton_actualisation = tkinter.Button(self.frame_exploreur,text="actualiser",command=self.actualiser_fonction)
         self.bouton_nouveau_dossier = tkinter.Button(self.frame_exploreur,text="nouveau dossier",command=self.nouveau_dossier)
+        self.bouton_renomer_dossier = tkinter.Button(self.frame_exploreur,text="renomer fichier/dossier",command=self.nouveau_dossier)
         self.bouton_suprimer_dossier = tkinter.Button(self.frame_exploreur,text="suprimer l'élément séléctioner",command=self.suprimer_dossier_fonction)
 
 
@@ -175,6 +185,7 @@ class main:
         self.bouton_déplacement_dossier.pack(side=tkinter.LEFT,anchor="n")
         self.bouton_retour_dossier.pack(side=tkinter.LEFT,anchor="n")
         self.bouton_nouveau_dossier.pack(side=tkinter.RIGHT,anchor="n")
+        self.bouton_renomer_dossier.pack(side=tkinter.RIGHT,anchor="n")
         self.bouton_suprimer_dossier.pack(side=tkinter.RIGHT,anchor="n")
         self.frame_exploreur.pack(side="top",anchor="n")
         self.div_bouton.pack(side="bottom")
@@ -214,8 +225,12 @@ class main:
                     self.listbox.update()
                 elif self.message_local[0] == "#00#":
                     self.message_local_config = self.message_local
+                elif self.message_local[0] == "#01#":
+                    self.label_retour_commande.config(text=self.message_local[1])
+                    print(self.message_local[1])
+                    self.zone_commande_entre.update()
                 elif self.message_local[0] == "#99#":
-                    self.exit()
+                    self.exit_serveur()
                 elif self.message_local[0] == "#81#":
                     self.connected = self.message_local[1]
                     if self.connected:
@@ -228,6 +243,12 @@ class main:
                     else:
                         self.label_login.config(text="connexion échoué")
                         self.frame_login.update()
+                elif self.message_local[0] == "#er#":
+                    fen_information = tkinter.Toplevel(class_="message d'information",master=self.fen)
+                    fen_information.geometry("300x300")
+                    tkinter.Label(fen_information,text=self.message_local[1]).pack()
+                    tkinter.Button(fen_information,text="fermer",command=fen_information.quit()).pack()
+                    fen_information.mainloop()
                 else:
                     pass
 
@@ -254,8 +275,11 @@ class main:
                     self.listbox.update()
                 elif self.message_distant[0] == "#00#":
                     self.message_distant_config = self.message_distant
+                elif self.message_distant[0] == "#01#":
+                    self.label_retour_commande.config(text=self.message_distant[1])
+                    self.zone_commande_entre.update()
                 elif self.message_distant[0] == "#99#":
-                    self.exit()
+                    self.exit_serveur()
                 elif self.message_distant[0] == "#81#":
                     self.connected = self.message_distant[1]
                     if self.connected:
@@ -410,6 +434,9 @@ class main:
         tkinter.Button(fen_secondary,text="vallidez le nom du dossier",command=validation).pack()
         fen_secondary.mainloop()
 
+    def renomer_fichier(self):
+        pass
+
     def suprimer_dossier_fonction(self):
         tempo = self.listbox.get(self.listbox.curselection())
         if self.test_mode:
@@ -546,17 +573,17 @@ class main:
         except:
             pass
 
-    def exit(self):
+    def exit_serveur(self):
         self.fen.quit()
         sleep(0.2)
-        fen_exit = tkinter.Tk(className="message serveur")
-        tkinter.Label(fen_exit,text="le serveur à redémarer").pack()
-        tkinter.Button(fen_exit,text="quitter",command=self.test_exit).pack()
-        fen_exit.geometry("300x300")
-        fen_exit.mainloop()
+        self.fen_exit = tkinter.Tk(className="message serveur")
+        tkinter.Label(self.fen_exit,text="le serveur à redémarer").pack()
+        tkinter.Button(self.fen_exit,text="quitter",command=self.test_exit).pack()
+        self.fen_exit.geometry("300x300")
+        self.fen_exit.mainloop()
 
     def test_exit(self):
-        self.exit_test = True
-        exit()
+        self.fen_exit.quit()
+        self.fen.quit()
 
 main()
